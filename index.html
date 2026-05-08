@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Екосистема: Повна мережа зв'язків</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --panel-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --edge-default: #cbd5e1;
+            --accent-water: #2563eb;
+            --accent-air: #0ea5e9;
+            --accent-soil: #78350f;
+            --accent-human: #e11d48;
+            --accent-tech: #7c3aed;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 98%;
+            max-width: 1200px;
+            height: 90vh;
+            background: var(--panel-bg);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            z-index: 20;
+        }
+
+        header h1 { margin: 0; font-size: 1.3rem; font-weight: 800; color: #1e293b; }
+        header p { margin: 4px 0 0; font-size: 0.85rem; color: var(--text-muted); }
+
+        .main-layout {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+
+        #graph-section {
+            flex: 1;
+            position: relative;
+            background-image: radial-gradient(#e2e8f0 0.8px, transparent 0.8px);
+            background-size: 24px 24px;
+            overflow: hidden;
+        }
+
+        #info-panel {
+            width: 380px;
+            border-left: 1px solid #e2e8f0;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        .info-placeholder {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+            opacity: 0.8;
+        }
+
+        .info-content { padding: 28px; display: none; }
+        .info-content.active { display: block; }
+
+        /* SVG Graph Styles */
+        svg { width: 100%; height: 100%; user-select: none; }
+
+        .edge {
+            stroke: var(--edge-default);
+            stroke-width: 1.8;
+            fill: none;
+            transition: all 0.3s ease;
+            opacity: 0.4;
+        }
+        .edge.active { stroke-width: 4; opacity: 1 !important; }
+        .edge.dimmed { opacity: 0.05; }
+        
+        .edge-hitbox { stroke: transparent; stroke-width: 15; fill: none; cursor: pointer; }
+
+        .node { cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .node circle { fill: white; stroke: var(--node-default); stroke-width: 3; transition: all 0.3s ease; }
+        .node.active circle { stroke-width: 8; }
+        .node.target circle { stroke-width: 4; stroke-dasharray: 6; }
+        .node.dimmed { opacity: 0.15; }
+        
+        .node-icon { font-size: 26px; pointer-events: none; }
+        .node-label { font-size: 14px; font-weight: 800; fill: #334155; pointer-events: none; }
+
+        .edge-text-label {
+            font-size: 10px;
+            font-weight: 700;
+            fill: #475569;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            cursor: pointer;
+            pointer-events: auto; /* Тепер текст клікабельний */
+            paint-order: stroke;
+            stroke: #fff;
+            stroke-width: 5px; /* Біла окантовка для кращої видимості та клікабельності */
+            stroke-linejoin: round;
+        }
+        .edge-text-label.visible { opacity: 1; }
+        .edge-text-label:hover { fill: #000; }
+
+        /* Interactive Elements */
+        .chip {
+            display: inline-block;
+            padding: 10px 14px;
+            background: #ffffff;
+            border: 2px solid #f1f5f9;
+            border-radius: 14px;
+            font-size: 0.85rem;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            transition: all 0.2s;
+        }
+        .chip:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.08); border-color: currentColor; }
+
+        .definition-box {
+            margin-top: 25px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 16px;
+            border-left: 6px solid #cbd5e1;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            display: none;
+            animation: fadeIn 0.4s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .btn-reset {
+            background: #1e293b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover { background: #000; transform: translateY(-1px); }
+
+        sub { font-size: 0.75em; }
+
+        @media (max-width: 850px) {
+            .main-layout { flex-direction: column; }
+            #info-panel { width: 100%; height: 350px; border-left: none; border-top: 1px solid #e2e8f0; }
+            .app-container { height: 100vh; width: 100%; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div>
+            <h1>Цілісність екосистеми</h1>
+            <p>Кожен елемент впливає на систему через складні хімічні зв'язки</p>
+        </div>
+        <button class="btn-reset" id="reset-btn">Оновити схему</button>
+    </header>
+
+    <div class="main-layout">
+        <section id="graph-section">
+            <svg id="canvas" viewBox="0 0 600 500">
+                <defs>
+                    <marker id="arrow" markerWidth="6" markerHeight="4" refX="6" refY="2" orient="auto">
+                        <polygon points="0 0, 6 2, 0 4" fill="#cbd5e1" id="arrow-polygon" />
+                    </marker>
+                </defs>
+                <g id="edges-layer"></g>
+                <g id="labels-layer"></g> <!-- Окремий шар для написів поверх ліній -->
+                <g id="nodes-layer"></g>
+            </svg>
+        </section>
+
+        <aside id="info-panel">
+            <div id="placeholder" class="info-placeholder">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🕸️</div>
+                <p>Оберіть будь-який елемент на схемі, щоб побачити його приховані зв'язки з іншими частинами світу</p>
+            </div>
+            <div id="details" class="info-content">
+                <div id="detail-header" style="display: flex; align-items: center; gap: 18px; margin-bottom: 25px;">
+                    <div id="detail-icon" style="font-size: 28px; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);"></div>
+                    <h2 id="detail-title" style="margin: 0; font-size: 1.5rem;"></h2>
+                </div>
+                <div id="detail-body"></div>
+                <div id="process-section" style="margin-top: 20px;"></div>
+                <div id="definition-box" class="definition-box"></div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+    const dictionary = {
+        "Гідроліз": "Реакція розкладу сполук водою (наприклад, розпад складних солей у ґрунті чи організмі).",
+        "Дисоціація": "Розпад речовин на заряджені іони у водному розчині, що робить їх доступними для живих клітин.",
+        "Електроліз": "Розклад речовини електричним струмом (наприклад, отримання чистого водню з води).",
+        "Фотосинтез": "Процес утворення глюкози з CO₂ та води за допомогою світла у зелених рослинах.",
+        "Газообмін": "Перехід кисню в кров та виведення вуглекислого газу через дихальну систему.",
+        "Азотфіксація": "Перетворення атмосферного N₂ у сполуки, які можуть засвоювати рослини (через блискавки або бактерії).",
+        "Іонний обмін": "Процес, за якого ґрунт утримує поживні елементи та віддає їх корінню рослин.",
+        "Гуміфікація": "Біохімічне перетворення органіки на родючий шар ґрунту — гумус.",
+        "Метаболізм": "Сукупність усіх реакцій обміну речовин та енергії в нашому тілі.",
+        "Біоакумуляція": "Накопичення стійких речовин (важких металів) у тканинах організмів через їжу.",
+        "Горіння": "Реакція окиснення палива киснем з виділенням CO₂, води та великої кількості енергії.",
+        "Каталіз": "Прискорення хімічних процесів у промисловості за допомогою спеціальних речовин.",
+        "Фільтрація": "Очищення води від домішок через шари ґрунту або штучні мембрани.",
+        "Ерозія": "Механічне та хімічне руйнування гірських порід водою та повітрям.",
+        "Сублімація": "Перехід речовини з твердого стану в газоподібний, минаючи рідку фазу.",
+        "Деструкція": "Розклад складних техногенних сполук під дією мікроорганізмів або УФ-випромінювання."
+    };
+
+    const systemData = {
+        nodes: [
+            { id: "water", label: "Вода", icon: "💧", color: "var(--accent-water)", 
+              desc: "Гідросфера. Універсальний розчинник, середовище для біохімічних циклів.",
+              processes: ["Гідроліз", "Дисоціація", "Фільтрація"] },
+            { id: "air", label: "Повітря", icon: "💨", color: "var(--accent-air)", 
+              desc: "Атмосфера. Газова суміш, джерело окисника та захисний екран.",
+              processes: ["Фотосинтез", "Газообмін", "Азотфіксація"] },
+            { id: "soil", label: "Ґрунт", icon: "🌱", color: "var(--accent-soil)", 
+              desc: "Літосфера. Поглинальний комплекс, що зберігає мінеральні ресурси.",
+              processes: ["Іонний обмін", "Гуміфікація", "Ерозія"] },
+            { id: "human", label: "Людина", icon: "👤", color: "var(--accent-human)", 
+              desc: "Біосфера. Жива система, що регулює потоки через споживання та працю.",
+              processes: ["Метаболізм", "Біоакумуляція", "Газообмін"] },
+            { id: "tech", label: "Технології", icon: "⚙️", color: "var(--accent-tech)", 
+              desc: "Техносфера. Інструменти штучного перетворення речовини та енергії.",
+              processes: ["Горіння", "Каталіз", "Електроліз", "Деструкція"] }
+        ],
+        edges: [
+            { from: "water", to: "air", label: "Випаровування", details: "Волога насичує повітря, формуючи хмари та переносячи приховану енергію." },
+            { from: "air", to: "water", label: "Абсорбція", details: "Розчинення O₂ та CO₂ у водоймах, що критично для водного дихання." },
+            { from: "water", to: "soil", label: "Зрошення", details: "Проникнення води у пори ґрунту, що активує хімічне живлення рослин." },
+            { from: "soil", to: "water", label: "Вилуговування", details: "Розчинення мінералів ґрунту та їх перенос підземними водами." },
+            { from: "water", to: "human", label: "Гідратація", details: "Вода забезпечує в'язкість крові та транспорт поживних речовин у клітини." },
+            { from: "human", to: "water", label: "Забруднення", details: "Скидання органічних відходів та хімікатів, що порушує сольовий баланс." },
+            { from: "water", to: "tech", label: "Охолодження", details: "Вода відводить надлишкове тепло від промислових реакторів та машин." },
+            { from: "tech", to: "water", label: "Очищення", details: "Технології фільтрації та зворотного осмосу для створення питної води." },
+            { from: "air", to: "soil", label: "Осади", details: "Дощ вимиває з повітря сполуки азоту та сірки, збагачуючи ґрунт." },
+            { from: "soil", to: "air", label: "Пилоутворення", details: "Підняття мінеральних часток та виділення ґрунтових газів (CH₄, CO₂)." },
+            { from: "air", to: "human", label: "Дихання", details: "Надходження кисню, необхідного для окиснення глюкози в мітохондріях." },
+            { from: "human", to: "air", label: "Видих", details: "Виведення вуглекислого газу — продукту енергетичного обміну людини." },
+            { from: "air", to: "tech", label: "Окиснення", details: "Повітря як джерело кисню для роботи двигунів та спалювання палива." },
+            { from: "tech", to: "air", label: "Емісія", details: "Викиди промислових газів, що змінюють прозорість та склад атмосфери." },
+            { from: "soil", to: "human", label: "Живлення", details: "Передача мікроелементів (I, Se, Zn) з ґрунту в організм через їжу." },
+            { from: "human", to: "soil", label: "Органіка", details: "Повернення біологічних залишків, що запускає цикл гуміфікації." },
+            { from: "soil", to: "tech", label: "Сировина", details: "Видобуток металів та мінералів для створення технічних пристроїв." },
+            { from: "tech", to: "soil", label: "Агрохімія", details: "Штучне внесення добрив та зміна структури ґрунту технікою." },
+            { from: "human", to: "tech", label: "Управління", details: "Створення та налаштування алгоритмів для контролю ресурсів." },
+            { from: "tech", to: "human", label: "Біоніка", details: "Використання технологій для відновлення функцій тіла (протези, ліки)." }
+        ]
+    };
+
+    const nodesLayer = document.getElementById('nodes-layer');
+    const edgesLayer = document.getElementById('edges-layer');
+    const labelsLayer = document.getElementById('labels-layer');
+    const infoPlaceholder = document.getElementById('placeholder');
+    const infoDetails = document.getElementById('details');
+    const arrowPolygon = document.getElementById('arrow-polygon');
+
+    const W = 600, H = 500, R = 185, NodeRadius = 40;
+
+    systemData.nodes.forEach((node, i) => {
+        const angle = (i * 2 * Math.PI) / systemData.nodes.length - Math.PI / 2;
+        node.x = W/2 + R * Math.cos(angle);
+        node.y = H/2 + R * Math.sin(angle);
+    });
+
+    function draw() {
+        systemData.edges.forEach((edge, i) => {
+            const from = systemData.nodes.find(n => n.id === edge.from);
+            const to = systemData.nodes.find(n => n.id === edge.to);
+
+            const dx = to.x - from.x, dy = to.y - from.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const curve = 42; 
+            const mx = (from.x + to.x)/2 - (dy/dist)*curve;
+            const my = (from.y + to.y)/2 + (dx/dist)*curve;
+
+            const vEndX = to.x - mx, vEndY = to.y - my;
+            const vDist = Math.sqrt(vEndX*vEndX + vEndY*vEndY);
+            const targetX = to.x - (vEndX/vDist) * NodeRadius;
+            const targetY = to.y - (vEndY/vDist) * NodeRadius;
+
+            const pathD = `M${from.x},${from.y} Q${mx},${my} ${targetX},${targetY}`;
+            
+            // Малювання лінії
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", pathD);
+            path.setAttribute("class", "edge");
+            path.setAttribute("id", `path-${i}`);
+            path.setAttribute("marker-end", "url(#arrow)");
+            edgesLayer.appendChild(path);
+
+            // Малювання хітбоксу (тільки для лінії)
+            const hitbox = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            hitbox.setAttribute("d", pathD);
+            hitbox.setAttribute("class", "edge-hitbox");
+            edgesLayer.appendChild(hitbox);
+
+            // Малювання напису (в окремому шарі поверх)
+            const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            const offsetDist = 18;
+            label.setAttribute("x", mx + (dy/dist)*offsetDist); 
+            label.setAttribute("y", my - (dx/dist)*offsetDist);
+            label.setAttribute("text-anchor", "middle");
+            label.setAttribute("class", "edge-text-label");
+            label.setAttribute("id", `label-${i}`);
+            label.textContent = edge.label;
+            labelsLayer.appendChild(label);
+
+            const selectFn = (e) => { e.stopPropagation(); selectEdge(edge, i); };
+            hitbox.onclick = selectFn;
+            label.onclick = selectFn;
+        });
+
+        systemData.nodes.forEach(node => {
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("class", "node");
+            g.setAttribute("id", `n-${node.id}`);
+            g.style.color = node.color;
+
+            const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            c.setAttribute("cx", node.x); c.setAttribute("cy", node.y); c.setAttribute("r", NodeRadius);
+
+            const icon = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            icon.setAttribute("x", node.x); icon.setAttribute("y", node.y - 4);
+            icon.setAttribute("text-anchor", "middle"); icon.setAttribute("class", "node-icon");
+            icon.textContent = node.icon;
+
+            const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            lbl.setAttribute("x", node.x); lbl.setAttribute("y", node.y + 26);
+            lbl.setAttribute("text-anchor", "middle"); lbl.setAttribute("class", "node-label");
+            lbl.textContent = node.label;
+
+            g.appendChild(c); g.appendChild(icon); g.appendChild(lbl);
+            nodesLayer.appendChild(g);
+
+            g.onclick = (e) => { e.stopPropagation(); selectNode(node); };
+        });
+    }
+
+    function selectNode(node) {
+        resetUI();
+        arrowPolygon.style.fill = node.color; 
+
+        const outgoing = systemData.edges.filter(e => e.from === node.id).map(e => e.to);
+        const incoming = systemData.edges.filter(e => e.to === node.id).map(e => e.from);
+        
+        systemData.nodes.forEach(n => {
+            const el = document.getElementById(`n-${n.id}`);
+            if (n.id === node.id) el.classList.add('active');
+            else if (outgoing.includes(n.id) || incoming.includes(n.id)) el.classList.add('target');
+            else el.classList.add('dimmed');
+        });
+
+        systemData.edges.forEach((edge, i) => {
+            const p = document.getElementById(`path-${i}`);
+            const lbl = document.getElementById(`label-${i}`);
+            if (edge.from === node.id || edge.to === node.id) {
+                p.classList.add('active');
+                p.style.stroke = node.color;
+                lbl.classList.add('visible');
+            } else {
+                p.classList.add('dimmed');
+            }
+        });
+
+        updateInfo(node.icon, node.label, node.color, `
+            <p style="margin-bottom:15px; font-weight: 500; color: #475569;">${node.desc}</p>
+            <div style="font-size:0.75rem; font-weight:800; color:#94a3b8; text-transform:uppercase; margin-bottom:12px; letter-spacing: 0.05em;">Процеси (натисніть на картку):</div>
+        `, node.processes);
+    }
+
+    function selectEdge(edge, idx) {
+        resetUI();
+        const highlightColor = "#334155";
+        arrowPolygon.style.fill = highlightColor;
+
+        const fromNode = systemData.nodes.find(n => n.id === edge.from);
+        const toNode = systemData.nodes.find(n => n.id === edge.to);
+
+        const edgePath = document.getElementById(`path-${idx}`);
+        edgePath.classList.add('active');
+        edgePath.style.stroke = highlightColor;
+        document.getElementById(`label-${idx}`).classList.add('visible');
+        
+        document.getElementById(`n-${fromNode.id}`).classList.remove('dimmed');
+        document.getElementById(`n-${toNode.id}`).classList.remove('dimmed');
+
+        systemData.edges.forEach((e, i) => { if(i !== idx) document.getElementById(`path-${i}`).classList.add('dimmed'); });
+        systemData.nodes.forEach(n => { if(n.id !== fromNode.id && n.id !== toNode.id) document.getElementById(`n-${n.id}`).classList.add('dimmed'); });
+
+        updateInfo("🔗", `${fromNode.label} → ${toNode.label}`, highlightColor, `
+            <p><strong>Суть зв'язку:</strong> ${edge.label}</p>
+            <p style="line-height: 1.6;">${edge.details.replace(/(\d+)/g, '<sub>$1</sub>')}</p>
+        `, []);
+    }
+
+    function updateInfo(icon, title, color, html, processes) {
+        infoPlaceholder.style.display = 'none';
+        infoDetails.classList.add('active');
+        const iconContainer = document.getElementById('detail-icon');
+        iconContainer.textContent = icon;
+        iconContainer.style.borderTop = `5px solid ${color}`;
+        
+        const titleEl = document.getElementById('detail-title');
+        titleEl.textContent = title;
+        titleEl.style.color = color;
+        
+        document.getElementById('detail-body').innerHTML = html;
+        
+        const procSection = document.getElementById('process-section');
+        procSection.innerHTML = '';
+        const defBox = document.getElementById('definition-box');
+        defBox.style.display = 'none';
+
+        processes.forEach(p => {
+            const chip = document.createElement('div');
+            chip.className = 'chip';
+            chip.style.color = color;
+            chip.innerHTML = p.replace(/(\d+)/g, '<sub>$1</sub>');
+            chip.onclick = () => {
+                defBox.style.display = 'block';
+                defBox.style.borderLeftColor = color;
+                defBox.innerHTML = `<strong>${p}:</strong> ${dictionary[p] || "Опис процесу готується до публікації."}`;
+            };
+            procSection.appendChild(chip);
+        });
+    }
+
+    function resetUI() {
+        systemData.nodes.forEach(n => {
+            const el = document.getElementById(`n-${n.id}`);
+            el.classList.remove('active', 'dimmed', 'target');
+            el.querySelector('circle').style.stroke = 'var(--node-default)';
+        });
+        document.querySelectorAll('.edge').forEach(el => {
+            el.classList.remove('active', 'dimmed');
+            el.style.stroke = 'var(--edge-default)';
+        });
+        document.querySelectorAll('.edge-text-label').forEach(el => el.classList.remove('visible'));
+        arrowPolygon.style.fill = '#cbd5e1';
+    }
+
+    function clearView() {
+        resetUI();
+        infoDetails.classList.remove('active');
+        infoPlaceholder.style.display = 'flex';
+    }
+
+    document.getElementById('reset-btn').onclick = clearView;
+    document.getElementById('canvas').onclick = (e) => { if(e.target.id === 'canvas') clearView(); };
+
+    draw();
+</script>
+</body>
+</html>
